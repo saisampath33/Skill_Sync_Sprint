@@ -40,8 +40,10 @@ public class AuthServiceImpl implements AuthService {
             throw new BadRequestException("Username already taken: " + request.getUsername());
         }
 
-        Role role = roleRepository.findByName(request.getRole())
-                .orElseThrow(() -> new ResourceNotFoundException("Role not found: " + request.getRole()));
+        // Enforce registration as LEARNER only by default
+        String roleName = "ROLE_LEARNER";
+        Role role = roleRepository.findByName(roleName)
+                .orElseThrow(() -> new ResourceNotFoundException("Registration Role not found: " + roleName));
 
         User user = User.builder()
                 .username(request.getUsername())
