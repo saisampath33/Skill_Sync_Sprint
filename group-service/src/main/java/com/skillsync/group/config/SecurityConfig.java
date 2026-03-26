@@ -26,7 +26,7 @@ public class SecurityConfig {
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .addFilterBefore(securityHeaderFilter, UsernamePasswordAuthenticationFilter.class)
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/actuator/**","/groups", "/groups/{groupId}").permitAll()
+                .requestMatchers("/groups/v3/api-docs/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/actuator/**","/groups", "/groups/{groupId}").permitAll()
                 .anyRequest().authenticated());
         return http.build();
     }
