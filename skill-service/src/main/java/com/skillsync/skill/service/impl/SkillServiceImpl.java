@@ -9,6 +9,9 @@ import com.skillsync.skill.repository.SkillRepository;
 import com.skillsync.skill.service.interfaces.SkillService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +27,9 @@ public class SkillServiceImpl implements SkillService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "skills", allEntries = true)
+    })
     public SkillResponseDto createSkill(SkillRequestDto request) {
         if (skillRepository.existsByNameIgnoreCase(request.getName())) {
             throw new BadRequestException("Skill already exists: " + request.getName());
@@ -41,14 +47,18 @@ public class SkillServiceImpl implements SkillService {
     }
 
     @Override
+    @Cacheable(value = "skill", key = "#id")
     public SkillResponseDto getSkillById(Long id) {
+        log.info("[CACHE MISS] Fetching skill {} from DB", id);
         return skillRepository.findById(id)
                 .map(this::mapToDto)
                 .orElseThrow(() -> new ResourceNotFoundException("Skill not found: " + id));
     }
 
     @Override
+    @Cacheable(value = "skills", key = "'all'")
     public List<SkillResponseDto> getAllSkills() {
+        log.info("[CACHE MISS] Fetching all skills from DB");
         return skillRepository.findAll().stream()
                 .map(this::mapToDto)
                 .collect(Collectors.toList());
@@ -56,6 +66,10 @@ public class SkillServiceImpl implements SkillService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "skill", key = "#id"),
+        @CacheEvict(value = "skills", allEntries = true)
+    })
     public SkillResponseDto updateSkill(Long id, SkillRequestDto request) {
         Skill skill = skillRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Skill not found: " + id));
@@ -75,6 +89,10 @@ public class SkillServiceImpl implements SkillService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "skill", key = "#id"),
+        @CacheEvict(value = "skills", allEntries = true)
+    })
     public void deleteSkill(Long id) {
         Skill skill = skillRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Skill not found: " + id));

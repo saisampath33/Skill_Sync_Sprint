@@ -10,6 +10,8 @@ import com.skillsync.review.repository.ReviewRepository;
 import com.skillsync.review.service.interfaces.ReviewService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +28,7 @@ public class ReviewServiceImpl implements ReviewService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "mentorReviews", key = "#request.mentorId")
     public ReviewResponseDto createReview(Long learnerId, ReviewRequestDto request) {
         // 1. Check if review for session already exists
         if (reviewRepository.existsBySessionId(request.getSessionId())) {
@@ -56,7 +59,9 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     @Override
+    @Cacheable(value = "mentorReviews", key = "#mentorId")
     public List<ReviewResponseDto> getReviewsByMentor(Long mentorId) {
+        log.info("[CACHE MISS] Fetching reviews for mentor {} from DB", mentorId);
         return reviewRepository.findByMentorId(mentorId).stream()
                 .map(this::mapToDto)
                 .collect(Collectors.toList());

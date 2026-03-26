@@ -12,6 +12,9 @@ import com.skillsync.session.repository.SessionRepository;
 import com.skillsync.session.service.interfaces.SessionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +32,9 @@ public class SessionServiceImpl implements SessionService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "mySessions", key = "#learnerId")
+    })
     public SessionResponseDto bookSession(Long learnerId, SessionRequestDto request) {
         // 1. Verify mentor is approved
         MentorResponseDto mentor = mentorFeignClient.getMentorById(request.getMentorId());
@@ -57,6 +63,10 @@ public class SessionServiceImpl implements SessionService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "session", key = "#sessionId"),
+        @CacheEvict(value = "mySessions", allEntries = true)
+    })
     public SessionResponseDto acceptSession(Long mentorUserId, Long sessionId) {
         Session session = getSessionByIdEntity(sessionId);
         
@@ -79,6 +89,10 @@ public class SessionServiceImpl implements SessionService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "session", key = "#sessionId"),
+        @CacheEvict(value = "mySessions", allEntries = true)
+    })
     public SessionResponseDto rejectSession(Long mentorUserId, Long sessionId) {
         Session session = getSessionByIdEntity(sessionId);
 
@@ -101,6 +115,10 @@ public class SessionServiceImpl implements SessionService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "session", key = "#sessionId"),
+        @CacheEvict(value = "mySessions", allEntries = true)
+    })
     public SessionResponseDto completeSession(Long mentorUserId, Long sessionId) {
         Session session = getSessionByIdEntity(sessionId);
 
@@ -119,6 +137,10 @@ public class SessionServiceImpl implements SessionService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "session", key = "#sessionId"),
+        @CacheEvict(value = "mySessions", allEntries = true)
+    })
     public SessionResponseDto cancelSession(Long userId, Long sessionId) {
         Session session = getSessionByIdEntity(sessionId);
 
@@ -147,14 +169,18 @@ public class SessionServiceImpl implements SessionService {
     }
 
     @Override
+    @Cacheable(value = "session", key = "#sessionId")
     public SessionResponseDto getSessionById(Long sessionId) {
+        log.info("[CACHE MISS] Fetching session {} from DB", sessionId);
         Session session = getSessionByIdEntity(sessionId);
         String mentorName = fetchMentorNameSafely(session.getMentorId());
         return mapToDto(session, mentorName);
     }
 
     @Override
+    @Cacheable(value = "mySessions", key = "'learner_' + #learnerId")
     public List<SessionResponseDto> getSessionsByLearner(Long learnerId) {
+        log.info("[CACHE MISS] Fetching sessions for learner {} from DB", learnerId);
         return sessionRepository.findByLearnerId(learnerId).stream()
                 .map(s -> mapToDto(s, fetchMentorNameSafely(s.getMentorId())))
                 .collect(Collectors.toList());

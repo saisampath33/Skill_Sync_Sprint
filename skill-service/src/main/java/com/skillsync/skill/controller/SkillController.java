@@ -33,6 +33,7 @@ public class SkillController {
     @GetMapping
     @Operation(summary = "Get all skills – Public")
     public ResponseEntity<List<SkillResponseDto>> getAllSkills() {
+
         return ResponseEntity.ok(skillService.getAllSkills());
     }
 

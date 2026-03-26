@@ -77,3 +77,22 @@ info:
   app:
     name: SkillSync API Gateway
     version: 1.0.0
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    urls:
+      - name: auth-service
+        url: /auth/v3/api-docs
+      - name: user-service
+        url: /users/v3/api-docs
+      - name: mentor-service
+        url: /mentors/v3/api-docs
+      - name: skill-service
+        url: /skills/v3/api-docs
+      - name: session-service
+        url: /sessions/v3/api-docs
+      - name: group-service
+        url: /groups/v3/api-docs
+      - name: review-service
+        url: /reviews/v3/api-docs

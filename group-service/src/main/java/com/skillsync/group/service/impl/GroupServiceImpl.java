@@ -12,6 +12,9 @@ import com.skillsync.group.repository.GroupRepository;
 import com.skillsync.group.service.interfaces.GroupService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +32,7 @@ public class GroupServiceImpl implements GroupService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "groups", allEntries = true)
     public GroupResponseDto createGroup(Long creatorId, GroupRequestDto request) {
         // 1. Verify skill exists
         try {
@@ -61,6 +65,10 @@ public class GroupServiceImpl implements GroupService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "group", key = "#groupId"),
+        @CacheEvict(value = "groups", allEntries = true)
+    })
     public GroupResponseDto joinGroup(Long userId, Long groupId) {
         Group group = getGroupEntity(groupId);
 
@@ -86,6 +94,10 @@ public class GroupServiceImpl implements GroupService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "group", key = "#groupId"),
+        @CacheEvict(value = "groups", allEntries = true)
+    })
     public void leaveGroup(Long userId, Long groupId) {
         GroupMember member = groupMemberRepository.findByGroupIdAndUserId(groupId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User is not a member of this group"));
@@ -101,12 +113,16 @@ public class GroupServiceImpl implements GroupService {
     }
 
     @Override
+    @Cacheable(value = "group", key = "#id")
     public GroupResponseDto getGroupById(Long id) {
+        log.info("[CACHE MISS] Fetching group {} from DB", id);
         return mapToDto(getGroupEntity(id));
     }
 
     @Override
+    @Cacheable(value = "groups", key = "'all'")
     public List<GroupResponseDto> getAllGroups() {
+        log.info("[CACHE MISS] Fetching all groups from DB");
         return groupRepository.findAll().stream()
                 .map(this::mapToDto)
                 .collect(Collectors.toList());
@@ -139,6 +155,10 @@ public class GroupServiceImpl implements GroupService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "group", key = "#groupId"),
+        @CacheEvict(value = "groups", allEntries = true)
+    })
     public void deleteGroup(Long creatorId, Long groupId) {
         Group group = getGroupEntity(groupId);
         if (!group.getCreatorId().equals(creatorId)) {
