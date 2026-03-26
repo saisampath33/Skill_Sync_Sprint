@@ -1,0 +1,79 @@
+server:
+  port: 8003
+
+spring:
+  application:
+    name: api-gateway
+  config:
+    import: optional:configserver:http://localhost:8001
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods: "*"
+            allowedHeaders: "*"
+      routes:
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/auth/**
+
+        - id: user-service
+          uri: lb://user-service
+          predicates:
+            - Path=/users/**
+
+        - id: mentor-service
+          uri: lb://mentor-service
+          predicates:
+            - Path=/mentors/**
+
+        - id: skill-service
+          uri: lb://skill-service
+          predicates:
+            - Path=/skills/**
+
+        - id: session-service
+          uri: lb://session-service
+          predicates:
+            - Path=/sessions/**
+
+        - id: group-service
+          uri: lb://group-service
+          predicates:
+            - Path=/groups/**
+
+        - id: review-service
+          uri: lb://review-service
+          predicates:
+            - Path=/reviews/**
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+
+jwt:
+  secret: SkillSyncSecretKey2026XyzAbc123SuperSecure!@#
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,gateway
+  endpoint:
+    health:
+      show-details: always
+
+info:
+  app:
+    name: SkillSync API Gateway
+    version: 1.0.0
