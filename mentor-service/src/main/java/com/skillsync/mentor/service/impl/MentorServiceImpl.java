@@ -12,6 +12,9 @@ import com.skillsync.mentor.repository.*;
 import com.skillsync.mentor.service.interfaces.MentorService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,12 +36,15 @@ public class MentorServiceImpl implements MentorService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "mentors", allEntries = true),
+        @CacheEvict(value = "mentorSearch", allEntries = true)
+    })
     public MentorResponseDto applyAsMentor(Long userId, String fullName, MentorApplicationRequestDto request) {
         if (mentorRepository.existsByUserId(userId)) {
             throw new BadRequestException("User already has a mentor profile");
         }
 
-        // Save application
         MentorApplication application = MentorApplication.builder()
                 .userId(userId)
                 .motivation(request.getMotivation())
@@ -49,7 +55,6 @@ public class MentorServiceImpl implements MentorService {
                 .build();
         applicationRepository.save(application);
 
-        // Create mentor record
         Mentor mentor = Mentor.builder()
                 .userId(userId)
                 .status(Mentor.MentorStatus.PENDING)
@@ -60,7 +65,6 @@ public class MentorServiceImpl implements MentorService {
                 .build();
         Mentor saved = mentorRepository.save(mentor);
 
-        // Save skill associations
         if (request.getSkillIds() != null) {
             request.getSkillIds().forEach(skillId ->
                 mentorSkillRepository.save(MentorSkill.builder()
@@ -76,6 +80,11 @@ public class MentorServiceImpl implements MentorService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "mentor", key = "#mentorId"),
+        @CacheEvict(value = "mentors", allEntries = true),
+        @CacheEvict(value = "mentorSearch", allEntries = true)
+    })
     public MentorResponseDto approveMentor(Long mentorId) {
         Mentor mentor = getMentorEntityById(mentorId);
         mentor.setStatus(Mentor.MentorStatus.APPROVED);
@@ -88,6 +97,10 @@ public class MentorServiceImpl implements MentorService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "mentor", key = "#mentorId"),
+        @CacheEvict(value = "mentors", allEntries = true)
+    })
     public MentorResponseDto rejectMentor(Long mentorId) {
         Mentor mentor = getMentorEntityById(mentorId);
         mentor.setStatus(Mentor.MentorStatus.REJECTED);
@@ -95,7 +108,9 @@ public class MentorServiceImpl implements MentorService {
     }
 
     @Override
+    @Cacheable(value = "mentor", key = "#mentorId")
     public MentorResponseDto getMentorById(Long mentorId) {
+        log.info("[CACHE MISS] Fetching mentor {} from DB", mentorId);
         return enrichAndMapToDto(getMentorEntityById(mentorId));
     }
 
@@ -107,7 +122,9 @@ public class MentorServiceImpl implements MentorService {
     }
 
     @Override
+    @Cacheable(value = "mentorSearch", key = "'skill_' + #skillId + '_rating_' + #minRating")
     public List<MentorResponseDto> searchMentors(Long skillId, Double minRating) {
+        log.info("[CACHE MISS] Searching mentors: skillId={}, minRating={}", skillId, minRating);
         List<Mentor> mentors = mentorRepository.findByStatus(Mentor.MentorStatus.APPROVED);
 
         if (skillId != null) {
@@ -127,7 +144,9 @@ public class MentorServiceImpl implements MentorService {
     }
 
     @Override
+    @Cacheable(value = "mentors", key = "'approved'")
     public List<MentorResponseDto> getAllApprovedMentors() {
+        log.info("[CACHE MISS] Fetching all approved mentors from DB");
         return mentorRepository.findByStatus(Mentor.MentorStatus.APPROVED)
                 .stream().map(this::enrichAndMapToDto).collect(Collectors.toList());
     }
@@ -147,6 +166,7 @@ public class MentorServiceImpl implements MentorService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "mentor", key = "#mentorId")
     public void updateRating(Long mentorId, Double newRating) {
         Mentor mentor = getMentorEntityById(mentorId);
         mentor.setRating(newRating);
