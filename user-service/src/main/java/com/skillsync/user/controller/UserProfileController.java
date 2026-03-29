@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -51,19 +52,21 @@ public class UserProfileController {
 
     @GetMapping("/profile/{userId}")
     @Operation(summary = "Get profile by userId (used by other services via Feign)")
-    public ResponseEntity<UserProfileResponseDto> getProfile(@PathVariable Long userId) {
+    public ResponseEntity<UserProfileResponseDto> getProfile(@PathVariable("userId") Long userId) {
         return ResponseEntity.ok(userProfileService.getProfileByUserId(userId));
     }
 
     @GetMapping("/all")
     @Operation(summary = "Get all profiles – ADMIN only")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<UserProfileResponseDto>> getAllProfiles() {
         return ResponseEntity.ok(userProfileService.getAllProfiles());
     }
 
     @DeleteMapping("/profile/{userId}")
     @Operation(summary = "Delete profile – ADMIN only")
-    public ResponseEntity<Map<String, String>> deleteProfile(@PathVariable Long userId) {
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, String>> deleteProfile(@PathVariable("userId") Long userId) {
         userProfileService.deleteProfile(userId);
         return ResponseEntity.ok(Map.of("message", "Profile deleted successfully"));
     }

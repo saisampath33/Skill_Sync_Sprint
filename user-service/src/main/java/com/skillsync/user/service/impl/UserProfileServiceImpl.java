@@ -5,6 +5,7 @@ import com.skillsync.user.dto.UserProfileResponseDto;
 import com.skillsync.user.entity.UserProfile;
 import com.skillsync.user.exception.BadRequestException;
 import com.skillsync.user.exception.ResourceNotFoundException;
+import com.skillsync.user.mapper.UserProfileMapper;
 import com.skillsync.user.repository.UserProfileRepository;
 import com.skillsync.user.service.interfaces.UserProfileService;
 import lombok.RequiredArgsConstructor;
@@ -24,32 +25,46 @@ import java.util.stream.Collectors;
 public class UserProfileServiceImpl implements UserProfileService {
 
     private final UserProfileRepository userProfileRepository;
+    private final UserProfileMapper userProfileMapper;
 
     @Override
     @Transactional
-    @CacheEvict(value = "userProfile", key = "#userId")
+    @Caching(evict = {
+        @CacheEvict(value = "userProfile", key = "#userId"),
+        @CacheEvict(value = "userProfiles", allEntries = true)
+    })
     public UserProfileResponseDto createProfile(Long userId, UserProfileRequestDto request) {
-        if (userProfileRepository.existsByUserId(userId)) {
-            throw new BadRequestException("Profile already exists for userId: " + userId);
-        }
-
-        UserProfile profile = UserProfile.builder()
-                .userId(userId)
-                .fullName(request.getFullName())
-                .bio(request.getBio())
-                .avatarUrl(request.getAvatarUrl())
-                .location(request.getLocation())
-                .linkedinUrl(request.getLinkedinUrl())
-                .build();
-
-        UserProfile saved = userProfileRepository.save(profile);
-        log.info("Profile created for userId: {}", userId);
-        return mapToDto(saved);
+        return userProfileRepository.findByUserId(userId)
+                .map(existingProfile -> {
+                    if (request.getFullName() != null) existingProfile.setFullName(request.getFullName());
+                    if (request.getBio() != null) existingProfile.setBio(request.getBio());
+                    if (request.getAvatarUrl() != null) existingProfile.setAvatarUrl(request.getAvatarUrl());
+                    if (request.getLocation() != null) existingProfile.setLocation(request.getLocation());
+                    if (request.getLinkedinUrl() != null) existingProfile.setLinkedinUrl(request.getLinkedinUrl());
+                    log.info("Profile updated via POST (upsert) for userId: {}", userId);
+                    return userProfileMapper.toDto(userProfileRepository.save(existingProfile));
+                })
+                .orElseGet(() -> {
+                    UserProfile profile = UserProfile.builder()
+                            .userId(userId)
+                            .fullName(request.getFullName())
+                            .bio(request.getBio())
+                            .avatarUrl(request.getAvatarUrl())
+                            .location(request.getLocation())
+                            .linkedinUrl(request.getLinkedinUrl())
+                            .build();
+                    UserProfile saved = userProfileRepository.save(profile);
+                    log.info("Profile created for userId: {}", userId);
+                    return userProfileMapper.toDto(saved);
+                });
     }
 
     @Override
     @Transactional
-    @CacheEvict(value = "userProfile", key = "#userId")
+    @Caching(evict = {
+        @CacheEvict(value = "userProfile", key = "#userId"),
+        @CacheEvict(value = "userProfiles", allEntries = true)
+    })
     public UserProfileResponseDto updateProfile(Long userId, UserProfileRequestDto request) {
         UserProfile profile = userProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Profile not found for userId: " + userId));
@@ -60,7 +75,7 @@ public class UserProfileServiceImpl implements UserProfileService {
         if (request.getLocation()    != null) profile.setLocation(request.getLocation());
         if (request.getLinkedinUrl() != null) profile.setLinkedinUrl(request.getLinkedinUrl());
 
-        return mapToDto(userProfileRepository.save(profile));
+        return userProfileMapper.toDto(userProfileRepository.save(profile));
     }
 
     @Override
@@ -68,7 +83,7 @@ public class UserProfileServiceImpl implements UserProfileService {
     public UserProfileResponseDto getProfileByUserId(Long userId) {
         log.info("[CACHE MISS] Fetching profile for userId {} from DB", userId);
         return userProfileRepository.findByUserId(userId)
-                .map(this::mapToDto)
+                .map(userProfileMapper::toDto)
                 .orElseThrow(() -> new ResourceNotFoundException("Profile not found for userId: " + userId));
     }
 
@@ -77,7 +92,7 @@ public class UserProfileServiceImpl implements UserProfileService {
     public List<UserProfileResponseDto> getAllProfiles() {
         log.info("[CACHE MISS] Fetching all profiles from DB");
         return userProfileRepository.findAll().stream()
-                .map(this::mapToDto)
+                .map(userProfileMapper::toDto)
                 .collect(Collectors.toList());
     }
 
@@ -92,17 +107,5 @@ public class UserProfileServiceImpl implements UserProfileService {
                 .orElseThrow(() -> new ResourceNotFoundException("Profile not found for userId: " + userId));
         userProfileRepository.delete(profile);
         log.info("Profile deleted for userId: {}", userId);
-    }
-
-    private UserProfileResponseDto mapToDto(UserProfile profile) {
-        return UserProfileResponseDto.builder()
-                .id(profile.getId())
-                .userId(profile.getUserId())
-                .fullName(profile.getFullName())
-                .bio(profile.getBio())
-                .avatarUrl(profile.getAvatarUrl())
-                .location(profile.getLocation())
-                .linkedinUrl(profile.getLinkedinUrl())
-                .build();
     }
 }

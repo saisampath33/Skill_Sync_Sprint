@@ -59,6 +59,22 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             String role   = String.valueOf(claims.get("role"));
             String username = String.valueOf(claims.get("fullName"));
 
+            // IMPORTANT: RBAC Enforcement at Gateway level
+            // 1. Block anyone except ADMIN from access /all or user lists
+            if ((path.contains("/users/all") || path.contains("/auth/users") || path.contains("/profiles/all")) 
+                && !"ROLE_ADMIN".equals(role)) {
+                exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
+                return exchange.getResponse().setComplete();
+            }
+
+            // 2. Block non-ADMIN from modifying skills
+            if (path.startsWith("/skills") && !exchange.getRequest().getMethod().name().equals("GET") 
+                && !"ROLE_ADMIN".equals(role)) {
+                exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
+                return exchange.getResponse().setComplete();
+            }
+
+            // Standard mutate - ensure we REMOVE existing headers to prevent spoofing
             ServerHttpRequest mutated = exchange.getRequest().mutate()
                     .header("X-User-Id",   userId)
                     .header("X-User-Role", role)

@@ -7,6 +7,7 @@ import com.skillsync.mentor.entity.*;
 import com.skillsync.mentor.exception.BadRequestException;
 import com.skillsync.mentor.exception.ResourceNotFoundException;
 import com.skillsync.mentor.feign.UserFeignClient;
+import com.skillsync.mentor.mapper.MentorMapper;
 import com.skillsync.mentor.rabbitmq.MentorEventPublisher;
 import com.skillsync.mentor.repository.*;
 import com.skillsync.mentor.service.interfaces.MentorService;
@@ -33,6 +34,7 @@ public class MentorServiceImpl implements MentorService {
     private final MentorAvailabilityRepository availabilityRepository;
     private final UserFeignClient userFeignClient;
     private final MentorEventPublisher eventPublisher;
+    private final MentorMapper mentorMapper;
 
     @Override
     @Transactional
@@ -75,7 +77,7 @@ public class MentorServiceImpl implements MentorService {
         }
 
         log.info("Mentor application created for userId: {}", userId);
-        return enrichAndMapToDto(saved);
+        return enrichAndMap(saved);
     }
 
     @Override
@@ -92,7 +94,7 @@ public class MentorServiceImpl implements MentorService {
         Mentor saved = mentorRepository.save(mentor);
         eventPublisher.publishMentorApproved(mentorId, mentor.getUserId());
         log.info("Mentor approved: mentorId={}", mentorId);
-        return enrichAndMapToDto(saved);
+        return enrichAndMap(saved);
     }
 
     @Override
@@ -104,21 +106,21 @@ public class MentorServiceImpl implements MentorService {
     public MentorResponseDto rejectMentor(Long mentorId) {
         Mentor mentor = getMentorEntityById(mentorId);
         mentor.setStatus(Mentor.MentorStatus.REJECTED);
-        return enrichAndMapToDto(mentorRepository.save(mentor));
+        return enrichAndMap(mentorRepository.save(mentor));
     }
 
     @Override
     @Cacheable(value = "mentor", key = "#mentorId")
     public MentorResponseDto getMentorById(Long mentorId) {
         log.info("[CACHE MISS] Fetching mentor {} from DB", mentorId);
-        return enrichAndMapToDto(getMentorEntityById(mentorId));
+        return enrichAndMap(getMentorEntityById(mentorId));
     }
 
     @Override
     public MentorResponseDto getMentorByUserId(Long userId) {
         Mentor mentor = mentorRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Mentor not found for userId: " + userId));
-        return enrichAndMapToDto(mentor);
+        return enrichAndMap(mentor);
     }
 
     @Override
@@ -140,7 +142,7 @@ public class MentorServiceImpl implements MentorService {
                     .collect(Collectors.toList());
         }
 
-        return mentors.stream().map(this::enrichAndMapToDto).collect(Collectors.toList());
+        return mentors.stream().map(this::enrichAndMap).collect(Collectors.toList());
     }
 
     @Override
@@ -148,13 +150,16 @@ public class MentorServiceImpl implements MentorService {
     public List<MentorResponseDto> getAllApprovedMentors() {
         log.info("[CACHE MISS] Fetching all approved mentors from DB");
         return mentorRepository.findByStatus(Mentor.MentorStatus.APPROVED)
-                .stream().map(this::enrichAndMapToDto).collect(Collectors.toList());
+                .stream().map(this::enrichAndMap).collect(Collectors.toList());
     }
 
     @Override
     @Transactional
-    public MentorAvailability addAvailability(Long mentorId, MentorAvailability availability) {
-        getMentorEntityById(mentorId);
+    public MentorAvailability addAvailability(Long userId, Long mentorId, MentorAvailability availability) {
+        Mentor mentor = getMentorEntityById(mentorId);
+        if (!mentor.getUserId().equals(userId)) {
+            throw new BadRequestException("Not authorized to manage availability for this mentor");
+        }
         availability.setMentorId(mentorId);
         return availabilityRepository.save(availability);
     }
@@ -181,32 +186,17 @@ public class MentorServiceImpl implements MentorService {
                 .orElseThrow(() -> new ResourceNotFoundException("Mentor not found: " + mentorId));
     }
 
-    private MentorResponseDto enrichAndMapToDto(Mentor mentor) {
+    private MentorResponseDto enrichAndMap(Mentor mentor) {
         List<Long> skillIds = mentorSkillRepository.findByMentorId(mentor.getId())
                 .stream().map(MentorSkill::getSkillId).collect(Collectors.toList());
 
-        String fullName = null;
-        String bio      = null;
+        UserProfileResponseDto profile = null;
         try {
-            UserProfileResponseDto profile = userFeignClient.getUserProfile(mentor.getUserId());
-            fullName = profile.getFullName();
-            bio      = profile.getBio();
+            profile = userFeignClient.getUserProfile(mentor.getUserId());
         } catch (Exception e) {
             log.warn("Could not fetch user profile for userId {}: {}", mentor.getUserId(), e.getMessage());
         }
 
-        return MentorResponseDto.builder()
-                .id(mentor.getId())
-                .userId(mentor.getUserId())
-                .fullName(fullName)
-                .bio(bio)
-                .status(mentor.getStatus())
-                .experience(mentor.getExperience())
-                .hourlyRate(mentor.getHourlyRate())
-                .rating(mentor.getRating())
-                .totalReviews(mentor.getTotalReviews())
-                .skillIds(skillIds)
-                .approvedAt(mentor.getApprovedAt())
-                .build();
+        return mentorMapper.toDto(mentor, skillIds, profile);
     }
 }

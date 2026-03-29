@@ -64,8 +64,8 @@ public class MentorController {
     @GetMapping("/search")
     @Operation(summary = "Search approved mentors by skillId and/or minRating – LEARNER")
     public ResponseEntity<List<MentorResponseDto>> search(
-            @RequestParam(required = false) Long skillId,
-            @RequestParam(required = false) Double minRating) {
+            @RequestParam(name = "skillId", required = false) Long skillId,
+            @RequestParam(name = "minRating", required = false) Double minRating) {
         return ResponseEntity.ok(mentorService.searchMentors(skillId, minRating));
     }
 
@@ -76,12 +76,14 @@ public class MentorController {
     }
 
     @PostMapping("/{mentorId}/availability")
-    @Operation(summary = "Add availability slot – MENTOR")
+    @Operation(summary = "Add availability slot – MENTOR only")
+    @PreAuthorize("hasAnyRole('MENTOR', 'ADMIN')")
     public ResponseEntity<MentorAvailability> addAvailability(
+            @RequestHeader("X-User-Id") Long userId,
             @PathVariable("mentorId") Long mentorId,
             @RequestBody MentorAvailability availability) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(mentorService.addAvailability(mentorId, availability));
+                .body(mentorService.addAvailability(userId, mentorId, availability));
     }
 
     @GetMapping("/{mentorId}/availability")
@@ -91,10 +93,11 @@ public class MentorController {
     }
 
     @PutMapping("/{mentorId}/rating")
-    @Operation(summary = "Update mentor rating – called internally by Review Service")
+    @Operation(summary = "Update mentor rating – Private/Internal")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Map<String, String>> updateRating(
             @PathVariable("mentorId") Long mentorId,
-            @RequestParam Double newRating) {
+            @RequestParam("newRating") Double newRating) {
         mentorService.updateRating(mentorId, newRating);
         return ResponseEntity.ok(Map.of("message", "Rating updated successfully"));
     }

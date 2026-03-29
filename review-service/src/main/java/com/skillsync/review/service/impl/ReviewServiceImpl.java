@@ -6,6 +6,7 @@ import com.skillsync.review.entity.Review;
 import com.skillsync.review.exception.BadRequestException;
 import com.skillsync.review.exception.ResourceNotFoundException;
 import com.skillsync.review.feign.MentorFeignClient;
+import com.skillsync.review.mapper.ReviewMapper;
 import com.skillsync.review.repository.ReviewRepository;
 import com.skillsync.review.service.interfaces.ReviewService;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,7 @@ public class ReviewServiceImpl implements ReviewService {
 
     private final ReviewRepository reviewRepository;
     private final MentorFeignClient mentorFeignClient;
+    private final ReviewMapper reviewMapper;
 
     @Override
     @Transactional
@@ -51,11 +53,10 @@ public class ReviewServiceImpl implements ReviewService {
             mentorFeignClient.updateMentorRating(request.getMentorId(), avgRating);
         } catch (Exception e) {
             log.error("Failed to update mentor rating: {}", e.getMessage());
-            // In production, might use a retry or message queue
         }
 
         log.info("Review created for Session {} by Learner {}", request.getSessionId(), learnerId);
-        return mapToDto(saved);
+        return reviewMapper.toDto(saved);
     }
 
     @Override
@@ -63,33 +64,21 @@ public class ReviewServiceImpl implements ReviewService {
     public List<ReviewResponseDto> getReviewsByMentor(Long mentorId) {
         log.info("[CACHE MISS] Fetching reviews for mentor {} from DB", mentorId);
         return reviewRepository.findByMentorId(mentorId).stream()
-                .map(this::mapToDto)
+                .map(reviewMapper::toDto)
                 .collect(Collectors.toList());
     }
 
     @Override
     public List<ReviewResponseDto> getReviewsByLearner(Long learnerId) {
         return reviewRepository.findByLearnerId(learnerId).stream()
-                .map(this::mapToDto)
+                .map(reviewMapper::toDto)
                 .collect(Collectors.toList());
     }
 
     @Override
     public ReviewResponseDto getReviewById(Long id) {
         return reviewRepository.findById(id)
-                .map(this::mapToDto)
+                .map(reviewMapper::toDto)
                 .orElseThrow(() -> new ResourceNotFoundException("Review not found with ID: " + id));
-    }
-
-    private ReviewResponseDto mapToDto(Review review) {
-        return ReviewResponseDto.builder()
-                .id(review.getId())
-                .learnerId(review.getLearnerId())
-                .mentorId(review.getMentorId())
-                .sessionId(review.getSessionId())
-                .rating(review.getRating())
-                .comment(review.getComment())
-                .createdAt(review.getCreatedAt())
-                .build();
     }
 }

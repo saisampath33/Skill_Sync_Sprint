@@ -5,12 +5,17 @@ spring:
   application:
     name: config-server
   profiles:
-    active: native
+    active: git
   cloud:
     config:
       server:
-        native:
-          search-locations: classpath:/config
+        git:
+          uri: https://github.com/saisampath33/skillsync-config-repo
+          clone-on-start: true
+          default-label: main
+          timeout: 20
+          username: saisampath33
+          password: ghp_YOUR_PERSONAL_ACCESS_TOKEN
 
 eureka:
   client:

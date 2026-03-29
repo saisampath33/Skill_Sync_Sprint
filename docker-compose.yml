@@ -1,0 +1,230 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3307:3306"
+    networks:
+      - skillsync-network
+
+  redis:
+    image: redis:alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - skillsync-network
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - skillsync-network
+
+  zipkin:
+    image: openzipkin/zipkin
+    container_name: zipkin
+    ports:
+      - "9411:9411"
+    networks:
+      - skillsync-network
+
+  config-server:
+    build:
+      context: .
+      dockerfile: config-server/Dockerfile
+    container_name: config-server
+    ports:
+      - "8001:8001"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    networks:
+      - skillsync-network
+    depends_on:
+      - rabbitmq
+
+  eureka-server:
+    build:
+      context: .
+      dockerfile: eureka-server/Dockerfile
+    container_name: eureka-server
+    ports:
+      - "9761:8761"
+    environment:
+      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8001
+    networks:
+      - skillsync-network
+    depends_on:
+      - config-server
+
+#  api-gateway:
+#    build:
+#      context: .
+#      dockerfile: api-gateway/Dockerfile
+#    container_name: api-gateway
+#    ports:
+#      - "8003:8003"
+#    environment:
+#      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8001
+#      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+#      - SPRING_RABBITMQ_HOST=rabbitmq
+#      - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411/api/v2/spans
+#    networks:
+#      - skillsync-network
+#    depends_on:
+#      - eureka-server
+#
+#  auth-service:
+#    build:
+#      context: .
+#      dockerfile: auth-service/Dockerfile
+#    container_name: auth-service
+#    environment:
+#      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8001
+#      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+#      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/skillsync_auth?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+#      - SPRING_RABBITMQ_HOST=rabbitmq
+#      - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411/api/v2/spans
+#    networks:
+#      - skillsync-network
+#    depends_on:
+#      - eureka-server
+#      - mysql
+#
+#  user-service:
+#    build:
+#      context: .
+#      dockerfile: user-service/Dockerfile
+#    container_name: user-service
+#    environment:
+#      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8001
+#      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+#      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/skillsync_user?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+#      - SPRING_DATA_REDIS_HOST=redis
+#      - SPRING_RABBITMQ_HOST=rabbitmq
+#      - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411/api/v2/spans
+#    networks:
+#      - skillsync-network
+#    depends_on:
+#      - eureka-server
+#      - mysql
+#      - redis
+#
+#  skill-service:
+#    build:
+#      context: .
+#      dockerfile: skill-service/Dockerfile
+#    container_name: skill-service
+#    environment:
+#      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8001
+#      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+#      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/skillsync_skill?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+#      - SPRING_DATA_REDIS_HOST=redis
+#      - SPRING_RABBITMQ_HOST=rabbitmq
+#      - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411/api/v2/spans
+#    networks:
+#      - skillsync-network
+#    depends_on:
+#      - eureka-server
+#      - mysql
+#      - redis
+#
+#  mentor-service:
+#    build:
+#      context: .
+#      dockerfile: mentor-service/Dockerfile
+#    container_name: mentor-service
+#    environment:
+#      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8001
+#      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+#      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/skillsync_mentor?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+#      - SPRING_DATA_REDIS_HOST=redis
+#      - SPRING_RABBITMQ_HOST=rabbitmq
+#      - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411/api/v2/spans
+#    networks:
+#      - skillsync-network
+#    depends_on:
+#      - eureka-server
+#      - mysql
+#      - redis
+#
+#  session-service:
+#    build:
+#      context: .
+#      dockerfile: session-service/Dockerfile
+#    container_name: session-service
+#    environment:
+#      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8001
+#      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+#      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/skillsync_session?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+#      - SPRING_DATA_REDIS_HOST=redis
+#      - SPRING_RABBITMQ_HOST=rabbitmq
+#      - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411/api/v2/spans
+#    networks:
+#      - skillsync-network
+#    depends_on:
+#      - eureka-server
+#      - mysql
+#      - redis
+#
+#  group-service:
+#    build:
+#      context: .
+#      dockerfile: group-service/Dockerfile
+#    container_name: group-service
+#    environment:
+#      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8001
+#      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+#      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/skillsync_group?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+#      - SPRING_DATA_REDIS_HOST=redis
+#      - SPRING_RABBITMQ_HOST=rabbitmq
+#      - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411/api/v2/spans
+#    networks:
+#      - skillsync-network
+#    depends_on:
+#      - eureka-server
+#      - mysql
+#      - redis
+#
+#  review-service:
+#    build:
+#      context: .
+#      dockerfile: review-service/Dockerfile
+#    container_name: review-service
+#    environment:
+#      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8001
+#      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+#      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/skillsync_review?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+#      - SPRING_DATA_REDIS_HOST=redis
+#      - SPRING_RABBITMQ_HOST=rabbitmq
+#      - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411/api/v2/spans
+#    networks:
+#      - skillsync-network
+#    depends_on:
+#      - eureka-server
+#      - mysql
+#      - redis
+#
+#  notification-service:
+#    build:
+#      context: .
+#      dockerfile: notification-service/Dockerfile
+#    container_name: notification-service
+#    environment:
+#      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8001
+#      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+#      - SPRING_RABBITMQ_HOST=rabbitmq
+#      - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411/api/v2/spans
+#    networks:
+#      - skillsync-network
+#    depends_on:
+#      - eureka-server
+
+networks:
+  skillsync-network:
+    driver: bridge

@@ -61,8 +61,8 @@ public class GroupController {
     @GetMapping
     @Operation(summary = "Get all peer groups or filter by skill/name")
     public ResponseEntity<List<GroupResponseDto>> getGroups(
-            @RequestParam(required = false) Long skillId,
-            @RequestParam(required = false) String name) {
+            @RequestParam(name = "skillId", required = false) Long skillId,
+            @RequestParam(name = "name", required = false) String name) {
         if (skillId != null) {
             return ResponseEntity.ok(groupService.getGroupsBySkill(skillId));
         } else if (name != null) {
@@ -79,8 +79,8 @@ public class GroupController {
     }
 
     @DeleteMapping("/{groupId}")
-    @Operation(summary = "Delete a group (Creator only)")
-    @PreAuthorize("hasAnyRole('LEARNER', 'MENTOR')")
+    @Operation(summary = "Delete a group (Creator or Admin only)")
+    @PreAuthorize("hasAnyRole('LEARNER', 'MENTOR', 'ADMIN')")
     public ResponseEntity<Map<String, String>> deleteGroup(
             @RequestHeader("X-User-Id") Long creatorId,
             @PathVariable("groupId") Long groupId) {
