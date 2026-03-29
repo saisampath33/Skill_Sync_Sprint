@@ -5,6 +5,7 @@ import com.skillsync.skill.dto.SkillResponseDto;
 import com.skillsync.skill.entity.Skill;
 import com.skillsync.skill.exception.BadRequestException;
 import com.skillsync.skill.exception.ResourceNotFoundException;
+import com.skillsync.skill.mapper.SkillMapper;
 import com.skillsync.skill.repository.SkillRepository;
 import com.skillsync.skill.service.interfaces.SkillService;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ import java.util.stream.Collectors;
 public class SkillServiceImpl implements SkillService {
 
     private final SkillRepository skillRepository;
+    private final SkillMapper skillMapper;
 
     @Override
     @Transactional
@@ -43,7 +45,7 @@ public class SkillServiceImpl implements SkillService {
 
         Skill saved = skillRepository.save(skill);
         log.info("Skill created: {}", saved.getName());
-        return mapToDto(saved);
+        return skillMapper.toDto(saved);
     }
 
     @Override
@@ -51,7 +53,7 @@ public class SkillServiceImpl implements SkillService {
     public SkillResponseDto getSkillById(Long id) {
         log.info("[CACHE MISS] Fetching skill {} from DB", id);
         return skillRepository.findById(id)
-                .map(this::mapToDto)
+                .map(skillMapper::toDto)
                 .orElseThrow(() -> new ResourceNotFoundException("Skill not found: " + id));
     }
 
@@ -60,7 +62,7 @@ public class SkillServiceImpl implements SkillService {
     public List<SkillResponseDto> getAllSkills() {
         log.info("[CACHE MISS] Fetching all skills from DB");
         return skillRepository.findAll().stream()
-                .map(this::mapToDto)
+                .map(skillMapper::toDto)
                 .collect(Collectors.toList());
     }
 
@@ -84,7 +86,7 @@ public class SkillServiceImpl implements SkillService {
         if (request.getDescription() != null) skill.setDescription(request.getDescription());
 
         log.info("Skill updated: {}", skill.getId());
-        return mapToDto(skillRepository.save(skill));
+        return skillMapper.toDto(skillRepository.save(skill));
     }
 
     @Override
@@ -98,15 +100,5 @@ public class SkillServiceImpl implements SkillService {
                 .orElseThrow(() -> new ResourceNotFoundException("Skill not found: " + id));
         skillRepository.delete(skill);
         log.info("Skill deleted: {}", id);
-    }
-
-    private SkillResponseDto mapToDto(Skill skill) {
-        return SkillResponseDto.builder()
-                .id(skill.getId())
-                .name(skill.getName())
-                .category(skill.getCategory())
-                .description(skill.getDescription())
-                .createdAt(skill.getCreatedAt())
-                .build();
     }
 }

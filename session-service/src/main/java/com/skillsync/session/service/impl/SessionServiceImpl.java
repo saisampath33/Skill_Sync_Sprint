@@ -7,6 +7,7 @@ import com.skillsync.session.entity.Session;
 import com.skillsync.session.exception.BadRequestException;
 import com.skillsync.session.exception.ResourceNotFoundException;
 import com.skillsync.session.feign.MentorFeignClient;
+import com.skillsync.session.mapper.SessionMapper;
 import com.skillsync.session.rabbitmq.SessionEventPublisher;
 import com.skillsync.session.repository.SessionRepository;
 import com.skillsync.session.service.interfaces.SessionService;
@@ -29,11 +30,12 @@ public class SessionServiceImpl implements SessionService {
     private final SessionRepository sessionRepository;
     private final MentorFeignClient mentorFeignClient;
     private final SessionEventPublisher eventPublisher;
+    private final SessionMapper sessionMapper;
 
     @Override
     @Transactional
     @Caching(evict = {
-        @CacheEvict(value = "mySessions", key = "#learnerId")
+        @CacheEvict(value = "mySessions", key = "'learner_' + #learnerId")
     })
     public SessionResponseDto bookSession(Long learnerId, SessionRequestDto request) {
         // 1. Verify mentor is approved
@@ -58,7 +60,7 @@ public class SessionServiceImpl implements SessionService {
         eventPublisher.publishSessionBooked(saved.getId(), learnerId, request.getMentorId(), saved.getScheduledAt().toString());
 
         log.info("Session {} booked by Learner {} with Mentor {}", saved.getId(), learnerId, request.getMentorId());
-        return mapToDto(saved, mentor.getFullName());
+        return sessionMapper.toDto(saved, mentor.getFullName());
     }
 
     @Override
@@ -84,7 +86,7 @@ public class SessionServiceImpl implements SessionService {
 
         eventPublisher.publishSessionAccepted(saved.getId(), saved.getLearnerId(), saved.getMentorId(), saved.getScheduledAt().toString());
 
-        return mapToDto(saved, mentor.getFullName());
+        return sessionMapper.toDto(saved, mentor.getFullName());
     }
 
     @Override
@@ -110,7 +112,7 @@ public class SessionServiceImpl implements SessionService {
 
         eventPublisher.publishSessionRejected(saved.getId(), saved.getLearnerId(), saved.getMentorId(), saved.getScheduledAt().toString());
 
-        return mapToDto(saved, mentor.getFullName());
+        return sessionMapper.toDto(saved, mentor.getFullName());
     }
 
     @Override
@@ -132,7 +134,7 @@ public class SessionServiceImpl implements SessionService {
         }
 
         session.setStatus(Session.SessionStatus.COMPLETED);
-        return mapToDto(sessionRepository.save(session), mentor.getFullName());
+        return sessionMapper.toDto(sessionRepository.save(session), mentor.getFullName());
     }
 
     @Override
@@ -144,7 +146,6 @@ public class SessionServiceImpl implements SessionService {
     public SessionResponseDto cancelSession(Long userId, Long sessionId) {
         Session session = getSessionByIdEntity(sessionId);
 
-        // Allow learner or mentor to cancel
         MentorResponseDto mentor = null;
         try {
             mentor = mentorFeignClient.getMentorById(session.getMentorId());
@@ -165,7 +166,7 @@ public class SessionServiceImpl implements SessionService {
 
         session.setStatus(Session.SessionStatus.CANCELLED);
         Session saved = sessionRepository.save(session);
-        return mapToDto(saved, mentor != null ? mentor.getFullName() : null);
+        return sessionMapper.toDto(saved, mentor != null ? mentor.getFullName() : null);
     }
 
     @Override
@@ -174,7 +175,7 @@ public class SessionServiceImpl implements SessionService {
         log.info("[CACHE MISS] Fetching session {} from DB", sessionId);
         Session session = getSessionByIdEntity(sessionId);
         String mentorName = fetchMentorNameSafely(session.getMentorId());
-        return mapToDto(session, mentorName);
+        return sessionMapper.toDto(session, mentorName);
     }
 
     @Override
@@ -182,14 +183,14 @@ public class SessionServiceImpl implements SessionService {
     public List<SessionResponseDto> getSessionsByLearner(Long learnerId) {
         log.info("[CACHE MISS] Fetching sessions for learner {} from DB", learnerId);
         return sessionRepository.findByLearnerId(learnerId).stream()
-                .map(s -> mapToDto(s, fetchMentorNameSafely(s.getMentorId())))
+                .map(s -> sessionMapper.toDto(s, fetchMentorNameSafely(s.getMentorId())))
                 .collect(Collectors.toList());
     }
 
     @Override
     public List<SessionResponseDto> getSessionsByMentor(Long mentorId) {
         return sessionRepository.findByMentorId(mentorId).stream()
-                .map(s -> mapToDto(s, fetchMentorNameSafely(s.getMentorId())))
+                .map(s -> sessionMapper.toDto(s, fetchMentorNameSafely(s.getMentorId())))
                 .collect(Collectors.toList());
     }
 
@@ -206,19 +207,5 @@ public class SessionServiceImpl implements SessionService {
         } catch (Exception e) {
             return "Unknown Mentor";
         }
-    }
-
-    private SessionResponseDto mapToDto(Session session, String mentorName) {
-        return SessionResponseDto.builder()
-                .id(session.getId())
-                .learnerId(session.getLearnerId())
-                .mentorId(session.getMentorId())
-                .mentorName(mentorName)
-                .skillId(session.getSkillId())
-                .status(session.getStatus())
-                .scheduledAt(session.getScheduledAt())
-                .durationMin(session.getDurationMin())
-                .notes(session.getNotes())
-                .build();
     }
 }

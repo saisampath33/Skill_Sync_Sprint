@@ -21,12 +21,13 @@ public class SecurityHeaderFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         String userId = request.getHeader("X-User-Id");
-        String role   = request.getHeader("X-User-Role");
+        String role = request.getHeader("X-User-Role");
 
         if (userId != null && role != null) {
             SimpleGrantedAuthority authority = new SimpleGrantedAuthority(role);
             UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
                     userId, null, Collections.singletonList(authority));
+            
             SecurityContextHolder.getContext().setAuthentication(auth);
         }
 

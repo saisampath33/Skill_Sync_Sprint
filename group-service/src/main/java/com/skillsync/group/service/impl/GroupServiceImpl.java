@@ -7,6 +7,7 @@ import com.skillsync.group.entity.GroupMember;
 import com.skillsync.group.exception.BadRequestException;
 import com.skillsync.group.exception.ResourceNotFoundException;
 import com.skillsync.group.feign.SkillFeignClient;
+import com.skillsync.group.mapper.GroupMapper;
 import com.skillsync.group.repository.GroupMemberRepository;
 import com.skillsync.group.repository.GroupRepository;
 import com.skillsync.group.service.interfaces.GroupService;
@@ -29,6 +30,7 @@ public class GroupServiceImpl implements GroupService {
     private final GroupRepository groupRepository;
     private final GroupMemberRepository groupMemberRepository;
     private final SkillFeignClient skillFeignClient;
+    private final GroupMapper groupMapper;
 
     @Override
     @Transactional
@@ -38,6 +40,7 @@ public class GroupServiceImpl implements GroupService {
         try {
             skillFeignClient.getSkillById(request.getSkillId());
         } catch (Exception e) {
+            log.error("Skill validation failed for ID {}: {}", request.getSkillId(), e.getMessage());
             throw new ResourceNotFoundException("Skill not found with ID: " + request.getSkillId());
         }
 
@@ -60,7 +63,7 @@ public class GroupServiceImpl implements GroupService {
         groupMemberRepository.save(admin);
 
         log.info("Group '{}' created by User {}", savedGroup.getName(), creatorId);
-        return mapToDto(savedGroup);
+        return enrichAndMap(savedGroup);
     }
 
     @Override
@@ -89,7 +92,7 @@ public class GroupServiceImpl implements GroupService {
         groupMemberRepository.save(member);
 
         log.info("User {} joined Group {}", userId, group.getName());
-        return mapToDto(group);
+        return enrichAndMap(group);
     }
 
     @Override
@@ -102,12 +105,6 @@ public class GroupServiceImpl implements GroupService {
         GroupMember member = groupMemberRepository.findByGroupIdAndUserId(groupId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User is not a member of this group"));
 
-        if (member.getRole() == GroupMember.MemberRole.ADMIN) {
-            // If admin leaves, we might need to assign a new admin or restrict leaving. 
-            // Simplifying: Admin can't leave if they are the only member, otherwise they just leave.
-            // In a real app, delete group if last admin leaves.
-        }
-
         groupMemberRepository.delete(member);
         log.info("User {} left Group {}", userId, groupId);
     }
@@ -116,7 +113,7 @@ public class GroupServiceImpl implements GroupService {
     @Cacheable(value = "group", key = "#id")
     public GroupResponseDto getGroupById(Long id) {
         log.info("[CACHE MISS] Fetching group {} from DB", id);
-        return mapToDto(getGroupEntity(id));
+        return enrichAndMap(getGroupEntity(id));
     }
 
     @Override
@@ -124,21 +121,21 @@ public class GroupServiceImpl implements GroupService {
     public List<GroupResponseDto> getAllGroups() {
         log.info("[CACHE MISS] Fetching all groups from DB");
         return groupRepository.findAll().stream()
-                .map(this::mapToDto)
+                .map(this::enrichAndMap)
                 .collect(Collectors.toList());
     }
 
     @Override
     public List<GroupResponseDto> getGroupsBySkill(Long skillId) {
         return groupRepository.findBySkillId(skillId).stream()
-                .map(this::mapToDto)
+                .map(this::enrichAndMap)
                 .collect(Collectors.toList());
     }
 
     @Override
     public List<GroupResponseDto> searchGroupsByName(String name) {
         return groupRepository.findByNameContainingIgnoreCase(name).stream()
-                .map(this::mapToDto)
+                .map(this::enrichAndMap)
                 .collect(Collectors.toList());
     }
 
@@ -149,7 +146,7 @@ public class GroupServiceImpl implements GroupService {
                 .collect(Collectors.toList());
         
         return groupRepository.findAllById(groupIds).stream()
-                .map(this::mapToDto)
+                .map(this::enrichAndMap)
                 .collect(Collectors.toList());
     }
 
@@ -178,7 +175,7 @@ public class GroupServiceImpl implements GroupService {
                 .orElseThrow(() -> new ResourceNotFoundException("Group not found with ID: " + id));
     }
 
-    private GroupResponseDto mapToDto(Group group) {
+    private GroupResponseDto enrichAndMap(Group group) {
         List<Long> members = groupMemberRepository.findByGroupId(group.getId()).stream()
                 .map(GroupMember::getUserId)
                 .collect(Collectors.toList());
@@ -190,17 +187,6 @@ public class GroupServiceImpl implements GroupService {
              log.warn("Could not fetch skill name for ID {}: {}", group.getSkillId(), e.getMessage());
         }
 
-        return GroupResponseDto.builder()
-                .id(group.getId())
-                .name(group.getName())
-                .description(group.getDescription())
-                .skillId(group.getSkillId())
-                .skillName(skillName)
-                .creatorId(group.getCreatorId())
-                .maxMembers(group.getMaxMembers())
-                .currentMembersCount(members.size())
-                .createdAt(group.getCreatedAt())
-                .memberUserIds(members)
-                .build();
+        return groupMapper.toDto(group, skillName, members);
     }
 }

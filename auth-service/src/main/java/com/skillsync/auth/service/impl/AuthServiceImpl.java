@@ -131,4 +131,14 @@ public class AuthServiceImpl implements AuthService {
     public boolean validateToken(String token) {
         return jwtUtil.validateToken(token);
     }
+
+    @Override
+    @Transactional
+    public void deleteUser(Long userId) {
+        if (!userRepository.existsById(userId)) {
+            throw new ResourceNotFoundException("User not found with ID: " + userId);
+        }
+        userRepository.deleteById(userId);
+        log.info("User deleted by Admin: userId={}", userId);
+    }
 }

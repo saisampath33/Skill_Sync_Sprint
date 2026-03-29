@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -23,6 +24,7 @@ public class ReviewController {
 
     @PostMapping
     @Operation(summary = "Submit a review for a completed session")
+    @PreAuthorize("hasAnyRole('LEARNER', 'ADMIN')")
     public ResponseEntity<ReviewResponseDto> createReview(
             @RequestHeader("X-User-Id") Long learnerId,
             @Valid @RequestBody ReviewRequestDto request) {
@@ -32,7 +34,7 @@ public class ReviewController {
 
     @GetMapping("/mentor/{mentorId}")
     @Operation(summary = "Get all reviews for a mentor")
-    public ResponseEntity<List<ReviewResponseDto>> getReviewsByMentor(@PathVariable Long mentorId) {
+    public ResponseEntity<List<ReviewResponseDto>> getReviewsByMentor(@PathVariable("mentorId") Long mentorId) {
         return ResponseEntity.ok(reviewService.getReviewsByMentor(mentorId));
     }
 
@@ -45,7 +47,7 @@ public class ReviewController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Get review details by ID")
-    public ResponseEntity<ReviewResponseDto> getReviewById(@PathVariable Long id) {
+    public ResponseEntity<ReviewResponseDto> getReviewById(@PathVariable("id") Long id) {
         return ResponseEntity.ok(reviewService.getReviewById(id));
     }
 }

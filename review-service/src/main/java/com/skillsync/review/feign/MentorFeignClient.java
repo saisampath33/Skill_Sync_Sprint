@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.Map;
 
-@FeignClient(name = "mentor-service", path = "/api/mentors")
+@FeignClient(name = "mentor-service", path = "/mentors")
 public interface MentorFeignClient {
 
     @PutMapping("/{mentorId}/rating")

@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -43,9 +44,17 @@ public class AuthController {
 
     @GetMapping("/validate")
     @Operation(summary = "Validate JWT token (used by Gateway)")
-    public ResponseEntity<Map<String, Boolean>> validate(@RequestHeader("Authorization") String authHeader) {
+    public ResponseEntity<Map<String, Boolean>> validate(@RequestHeader(value = "Authorization") String authHeader) {
         String token = authHeader.replace("Bearer ", "");
         boolean valid = authService.validateToken(token);
         return ResponseEntity.ok(Map.of("valid", valid));
+    }
+
+    @DeleteMapping("/users/{userId}")
+    @Operation(summary = "Delete user account – ADMIN ONLY")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, String>> deleteUser(@PathVariable("userId") Long userId) {
+        authService.deleteUser(userId);
+        return ResponseEntity.ok(Map.of("message", "User account deleted successfully"));
     }
 }

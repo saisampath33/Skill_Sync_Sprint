@@ -47,7 +47,7 @@ public class SkillController {
     @Operation(summary = "Update skill – ADMIN only")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<SkillResponseDto> updateSkill(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @Valid @RequestBody SkillRequestDto request) {
         return ResponseEntity.ok(skillService.updateSkill(id, request));
     }
@@ -55,7 +55,7 @@ public class SkillController {
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete skill – ADMIN only")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Map<String, String>> deleteSkill(@PathVariable Long id) {
+    public ResponseEntity<Map<String, String>> deleteSkill(@PathVariable("id") Long id) {
         skillService.deleteSkill(id);
         return ResponseEntity.ok(Map.of("message", "Skill deleted successfully"));
     }

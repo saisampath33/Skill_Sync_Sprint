@@ -9,4 +9,5 @@ public interface AuthService {
     AuthResponseDto login(LoginRequestDto request);
     AuthResponseDto refreshToken(String refreshToken);
     boolean validateToken(String token);
+    void deleteUser(Long userId);
 }

@@ -14,7 +14,7 @@ public interface MentorService {
     MentorResponseDto getMentorByUserId(Long userId);
     List<MentorResponseDto> searchMentors(Long skillId, Double minRating);
     List<MentorResponseDto> getAllApprovedMentors();
-    MentorAvailability addAvailability(Long mentorId, MentorAvailability availability);
+    MentorAvailability addAvailability(Long userId, Long mentorId, MentorAvailability availability);
     List<MentorAvailability> getAvailability(Long mentorId);
     void updateRating(Long mentorId, Double newRating);
 }
