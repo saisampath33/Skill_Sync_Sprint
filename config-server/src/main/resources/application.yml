@@ -5,17 +5,11 @@ spring:
   application:
     name: config-server
   profiles:
-    active: git
+    default: dev
   cloud:
     config:
       server:
-        git:
-          uri: https://github.com/saisampath33/skillsync-config-repo
-          clone-on-start: true
-          default-label: main
-          timeout: 20
-          username: saisampath33
-          password: ghp_YOUR_PERSONAL_ACCESS_TOKEN
+        fail-on-composite-error: false
 
 eureka:
   client:
@@ -28,7 +22,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,refresh,bus-refresh
+        include: health,info,refresh,bus-refresh,prometheus
   endpoint:
     health:
       show-details: always
@@ -37,3 +31,35 @@ info:
   app:
     name: SkillSync Config Server
     version: 1.0.0
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+  cloud:
+    config:
+      server:
+        git:
+          uri: ${CONFIG_REPO_URI:https://github.com/saisampath33/skillsync-config-repo}
+          default-label: ${CONFIG_REPO_LABEL:main}
+          clone-on-start: false
+          timeout: 20
+          username: ${GIT_USERNAME:}
+          password: ${GIT_PAT:}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+  cloud:
+    config:
+      server:
+        git:
+          uri: ${CONFIG_REPO_URI:https://github.com/saisampath33/skillsync-config-repo}
+          default-label: ${CONFIG_REPO_LABEL:main}
+          clone-on-start: true
+          timeout: 20
+          username: ${GIT_USERNAME:}
+          password: ${GIT_PAT:}

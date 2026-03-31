@@ -2,6 +2,7 @@ package com.skillsync.review.service.impl;
 
 import com.skillsync.review.dto.ReviewResponseDto;
 import com.skillsync.review.entity.Review;
+import com.skillsync.review.mapper.ReviewMapper;
 import com.skillsync.review.repository.ReviewRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -13,13 +14,116 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class ReviewServiceImplTest {
+class
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ReviewServiceImplTest {
 
     @Mock
     private ReviewRepository reviewRepository;
+
+    @Mock
+    private ReviewMapper reviewMapper;
 
     @InjectMocks
     private ReviewServiceImpl reviewService;
@@ -35,7 +139,13 @@ class ReviewServiceImplTest {
                 .comment("Great!")
                 .build();
 
+        ReviewResponseDto responseDto = ReviewResponseDto.builder()
+                .id(1L)
+                .comment("Great!")
+                .build();
+
         when(reviewRepository.findByMentorId(10L)).thenReturn(List.of(review));
+        when(reviewMapper.toDto(any(Review.class))).thenReturn(responseDto);
 
         List<ReviewResponseDto> response = reviewService.getReviewsByMentor(10L);
 

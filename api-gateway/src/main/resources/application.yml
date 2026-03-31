@@ -4,8 +4,10 @@ server:
 spring:
   application:
     name: api-gateway
+  profiles:
+    default: dev
   config:
-    import: optional:configserver:http://localhost:8001
+    import: optional:configserver:${CONFIG_SERVER_URL:http://localhost:8001}
   cloud:
     gateway:
       discovery:
@@ -56,3 +58,12 @@ info:
   app:
     name: SkillSync API Gateway
     version: 1.0.0
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always

@@ -5,6 +5,7 @@ import com.skillsync.skill.dto.SkillResponseDto;
 import com.skillsync.skill.entity.Skill;
 import com.skillsync.skill.exception.BadRequestException;
 import com.skillsync.skill.exception.ResourceNotFoundException;
+import com.skillsync.skill.mapper.SkillMapper;
 import com.skillsync.skill.repository.SkillRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,11 +26,15 @@ class SkillServiceImplTest {
     @Mock
     private SkillRepository skillRepository;
 
+    @Mock
+    private SkillMapper skillMapper;
+
     @InjectMocks
     private SkillServiceImpl skillService;
 
     private Skill skill;
     private SkillRequestDto requestDto;
+    private SkillResponseDto responseDto;
 
     @BeforeEach
     void setUp() {
@@ -44,12 +49,18 @@ class SkillServiceImplTest {
         requestDto.setName("Java");
         requestDto.setCategory("Backend");
         requestDto.setDescription("Java programming");
+
+        responseDto = SkillResponseDto.builder()
+                .id(1L)
+                .name("Java")
+                .build();
     }
 
     @Test
     void createSkill_Success() {
         when(skillRepository.existsByNameIgnoreCase("Java")).thenReturn(false);
         when(skillRepository.save(any(Skill.class))).thenReturn(skill);
+        when(skillMapper.toDto(any(Skill.class))).thenReturn(responseDto);
 
         SkillResponseDto response = skillService.createSkill(requestDto);
 
@@ -71,6 +82,7 @@ class SkillServiceImplTest {
     @Test
     void getSkillById_Success() {
         when(skillRepository.findById(1L)).thenReturn(Optional.of(skill));
+        when(skillMapper.toDto(skill)).thenReturn(responseDto);
 
         SkillResponseDto response = skillService.getSkillById(1L);
 
