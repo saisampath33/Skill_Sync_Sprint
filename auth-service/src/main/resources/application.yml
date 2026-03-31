@@ -4,8 +4,10 @@ server:
 spring:
   application:
     name: auth-service
+  profiles:
+    default: dev
   config:
-    import: configserver:http://localhost:8001
+    import: optional:configserver:${CONFIG_SERVER_URL:http://localhost:8001}
 
 # Recovery Settings - Fail-safe if Config Server hasn't finished its Git clone
 jwt:

@@ -1,13 +1,13 @@
 services:
-  mysql:
-    image: mysql:8.0
-    container_name: mysql
-    environment:
-      MYSQL_ROOT_PASSWORD: root
-    ports:
-      - "3307:3306"
-    networks:
-      - skillsync-network
+#  mysql:
+#    image: mysql:8.0
+#    container_name: mysql
+#    environment:
+#      MYSQL_ROOT_PASSWORD: root
+#    ports:
+#      - "3307:3306"
+#    networks:
+#      - skillsync-network
 
   redis:
     image: redis:alpine
@@ -34,33 +34,33 @@ services:
     networks:
       - skillsync-network
 
-  config-server:
-    build:
-      context: .
-      dockerfile: config-server/Dockerfile
-    container_name: config-server
-    ports:
-      - "8001:8001"
-    environment:
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
-    networks:
-      - skillsync-network
-    depends_on:
-      - rabbitmq
-
-  eureka-server:
-    build:
-      context: .
-      dockerfile: eureka-server/Dockerfile
-    container_name: eureka-server
-    ports:
-      - "9761:8761"
-    environment:
-      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8001
-    networks:
-      - skillsync-network
-    depends_on:
-      - config-server
+#  config-server:
+#    build:
+#      context: .
+#      dockerfile: config-server/Dockerfile
+#    container_name: config-server
+#    ports:
+#      - "8001:8001"
+#    environment:
+#      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+#    networks:
+#      - skillsync-network
+#    depends_on:
+#      - rabbitmq
+#
+#  eureka-server:
+#    build:
+#      context: .
+#      dockerfile: eureka-server/Dockerfile
+#    container_name: eureka-server
+#    ports:
+#      - "9761:8761"
+#    environment:
+#      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8001
+#    networks:
+#      - skillsync-network
+#    depends_on:
+#      - config-server
 
 #  api-gateway:
 #    build:
@@ -224,6 +224,32 @@ services:
 #      - skillsync-network
 #    depends_on:
 #      - eureka-server
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - skillsync-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - skillsync-network
+    depends_on:
+      - prometheus
 
 networks:
   skillsync-network:

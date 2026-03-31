@@ -26,7 +26,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
     // Public paths that don't need JWT
     private static final String[] PUBLIC_PATHS = {
             "/auth/login", "/auth/register", "/auth/refresh",
-            "/actuator", "/v3/api-docs", "/swagger-ui"
+            "/actuator", "/v3/api-docs", "/swagger-ui", "/fallback"
     };
 
     @Override
